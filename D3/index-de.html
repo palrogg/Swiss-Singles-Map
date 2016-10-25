@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Les célibataires en Suisse</title>
+<link rel="stylesheet" href="css/ion.rangeSlider.css" />
+<style>
+/* added for zoom/pan - to be enhanced */
+body, html {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+#toolbar {
+  position: fixed;
+  z-index: 20000;
+  top: 0;
+  left: 0;
+  width: 96%;
+  padding: 0 2%;
+  height: 60px;
+  background: white;
+  border-bottom: 1px solid #333;
+}
+
+svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+/* end added for   */
+
+body{
+background: #ccc;
+}
+.boundary {
+  stroke: #ccc;
+  stroke-width: .5px;
+}
+.counties {
+  fill: none;
+}
+
+.states {
+  fill: none;
+  stroke: none; /* #fff; */
+  stroke-linejoin: round;
+}
+.boundary:hover{
+  /* transform: perspective(500px) translate3d(10px,0px,0px); */
+  /* Problem: a transform would erase the current transform */
+  /* fill: orange; */
+  stroke: #fff;
+}
+
+.q0-9 { fill:rgb(247,251,255); }
+.q1-9 { fill:rgb(222,235,247); }
+.q2-9 { fill:rgb(198,219,239); }
+.q3-9 { fill:rgb(158,202,225); }
+.q4-9 { fill:rgb(107,174,214); }
+.q5-9 { fill:rgb(66,146,198); }
+.q6-9 { fill:rgb(33,113,181); }
+.q7-9 { fill:rgb(8,81,156); }
+.q8-9 { fill:rgb(8,48,107); }
+
+/* Tooltip */
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+</style>
+<script src="js/d3.min.js"></script>
+<script src="js/topojson.v1.min.js"></script>
+<script type="text/javascript" src="js/tooltip.js"></script>
+<script src="js/lang.de.js"></script>
+<script src="js/jquery-1.12.4.min.js"></script>
+<script src="js/ion.rangeSlider.js"></script>
+</head>
+<body>
+  <div id="toolbar">
+    <input type="text" id="range_slider" />
+  </div>
+
+<script>
+// A - Tooltip
+window.onload=function(){
+  var age_from = 20, age_to = 94;
+
+  var tip = d3.tip()
+    .attr('class', 'd3-tip')
+    .offset([-10, 0])
+    .html(function(d) {
+      var townName = nameById.get(d.properties.BFS_NUMMER);
+      if (!townName){
+        townName = d.properties.NAME; // + ' (no commune = '+d.properties.BFS_NUMMER+')';
+      }
+
+      if(d.properties.IS_LAKE == true)
+      {
+        return townName;
+      }else if(d.properties.IS_UNAVAILABLE == true){
+        return lang.notAvailable + townName + '. ' + lang.newTown + '.';
+      }else{
+        var singleMen = 0,
+          singleString = lang.singleMen,
+          from_to = '';
+        if(d.properties.singlesForCurrentSpan){
+          singleMen = d.properties.singlesForCurrentSpan;
+          from_to = ' ' + lang.from + ' ' + age_from + ' ' + lang.to + ' ' + age_to + ' ' + lang.years_old + ' ';
+          /*fromAge = 10;
+          toAge = 20;
+          var from_to_str = lang.from_to;
+          console.log(from_to_str);*/
+        }else{
+          singleMen = singleMenById.get(d.properties.BFS_NUMMER);
+        }
+        if (singleMen < 0){
+          singleMen *= -1;
+          singleString = lang.singleWomen;
+        }
+        return "<strong>" + singleString + " " + from_to + lang.in + " " + townName + ":</strong> <span style='color:red'>" + singleMen + "</span>";
+      }
+    });
+
+  var svg = d3.select("body")
+    .append("svg")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .call(d3.zoom().on("zoom", function () {
+      // zoom function
+      svg.attr("transform", d3.event.transform);
+
+      var k = d3.event.transform.k;
+      if(k > 2){
+        svg.selectAll("path").style('stroke-width', '0.1px');
+      }else if(k > 5){
+        svg.selectAll("path").style('stroke-width', '0.01px');
+      }else{
+        svg.selectAll("path").style('stroke-width', '0.5px');
+      }
+      // Here we could change the stroke width:
+      // k = 100;
+      // xxx.style("stroke-width", 1.5 / k + "px");
+    }))
+    .append("g")
+
+
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
+
+  svg.call(tip);
+
+  // B - load data and draw D3 visualization
+  var nameById = d3.map();
+  var singleMenById = d3.map();
+  var singleMenByAgeById = d3.map();
+  /*var quantize = d3.scaleQuantize()
+      .domain([-50, 50])
+      .range(['blue', 'purple', 'red']);
+  -> maybe the best way, but needs more scales
+      */
+
+  var quantize = d3.scaleLinear()
+      .domain([-50, 0, 50]) // 0, pivot, max
+      .range(['red', 'white', 'blue']);
+
+
+  var projection = d3.geoMercator()
+      .scale(30000)
+      .center(lang.center);
+      //.center([6.6, 46.6]); // Geneva
+      // .center([8.4, 47.4]); // Zurich
+      //.center([7.5, 47.5]) // near Basel
+      //.center([8, 46.7]) // near Brienzersee
+
+
+  var path = d3.geoPath()
+      .projection(projection);
+
+
+  d3.queue()
+      .defer(d3.json, "gemeinden.json")
+      .defer(d3.csv, "singles_dataset", function(row) {
+  	    nameById.set(row.GDENR, row.Gemeinde);
+
+        // the next line will be deleted when the code is ready
+        singleMenById.set(row.GDENR, row['Ledige Männer Total +/-']);
+
+        singleMenByAgeById.set(row.GDENR, row);
+      })
+      .await(ready);
+
+  function ready(error, ch) {
+    if (error)
+    {
+      console.log('Could not load data');
+      throw error;
+    }
+    //console.log(singleMenByAgeById['$1']);
+
+    svg.append("g")
+      .attr("class", "counties")
+      .selectAll("path")
+      .data(topojson.feature(ch, ch.objects.gemeinden).features)
+      .enter().append("path")
+      .attr("class", "boundary")
+      .attr("fill", function(d) {
+        if(!singleMenById.get(d.properties.BFS_NUMMER)){
+          if(d.properties.NAME.match(/^Lac|.*see$|.*see \(.{2}\)$|^Lago|^Bielersee|^Murtensee/)){
+            d.properties.IS_LAKE = true;
+            return '#33ccff';
+          }else{
+            d.properties.IS_UNAVAILABLE = true;
+            return 'black';
+          }
+        }else{
+          return quantize(singleMenById.get(d.properties.BFS_NUMMER));
+        }
+      })
+      .attr("d", path)
+      .on("mouseover", tip.show)
+      .on("mouseout", tip.hide);
+  }
+
+
+  // C - Update visualization for a given age span
+  function update_data_range(range_from, range_to){
+    var usecols = get_data_range(range_from, range_to);
+    age_from = range_from;
+    age_to = range_to;
+
+    svg.selectAll("path")
+      .transition().duration(200)
+      .style("fill", function(d) {
+        if(!singleMenById.get(d.properties.BFS_NUMMER)){
+          if(d.properties.NAME.match(/^Lac|.*see$|.*see \(.{2}\)$|^Lago|^Bielersee|^Murtensee/)){
+            d.properties.IS_LAKE = true;
+            return '#33ccff';
+          }else{
+            d.properties.IS_UNAVAILABLE = true;
+            return 'black';
+          }
+        }else{
+          var totalSingles = singleMenByAgeById.get(d.properties.BFS_NUMMER);
+          var singlesCount = 0;
+          for (var col of usecols) {
+            singlesCount += parseInt(totalSingles[col + '_men']);
+          }
+          d.properties.singlesForCurrentSpan = singlesCount;
+          return quantize(singlesCount);
+        }
+      });
+  }
+
+
+  // D - Range slider
+  var age_spans = Array('20-24','25-29','30-34','35-39','40-44','45-49','50-54','55-59','60-64','65-69','70-74','75-79','80-84','85-89','90-94');
+
+  function get_data_range(range_from, range_to){
+    var columns = Array();
+
+    if (range_to - range_from <= 4){
+      value = range_from + '-' + range_to;
+      if(age_spans.indexOf(value) > -1){
+        columns.push(value);
+        console.log('One single column: ' + columns);
+      }else{
+        console.log('Single column, but value ' + value + ' not found');
+        return false;
+      }
+    }else{
+      for (i = range_from; i < range_to; i+=5) {
+        columns.push( i + "-" + (i+4) );
+      }
+      console.log('Multiple columns: ' + columns)
+    }
+    return columns;
+  }
+
+
+  $("#range_slider").ionRangeSlider({
+    type: "double",
+    grid: true,
+    min: 20,
+    max: 95,
+    grid_num: 15,
+    min_interval: 5,
+    from: 20,
+    to: 95,
+    step: 5,
+    drag_interval: true,
+    postfix: ' ' + lang.years_old,
+    onFinish: function(data){
+      var years_to = $('.irs-to').text().split(' ')[0];
+      $('.irs-to').html(years_to - 1 + ' ' + lang.years_old);
+      update_data_range(data.from, data.to-1);
+    }
+  });
+}
+
+</script>
+</body>
+</html>
