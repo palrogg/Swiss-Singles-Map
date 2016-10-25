@@ -201,7 +201,7 @@ window.onload=function(){
       .attr("class", "boundary")
         .attr("fill", function(d) {
           if(!singleMenById.get(d.properties.BFS_NUMMER)){
-            if(d.properties.NAME.match(/^Lac.*|.*see$|.*see \(.{2}\)$/)){
+            if(d.properties.NAME.match(/^Lac|.*see$|.*see \(.{2}\)$|^Lago|^Bielersee|^Murtensee/)){
               d.properties.IS_LAKE = true;
               return '#33ccff';
             }else{
@@ -222,28 +222,6 @@ window.onload=function(){
 
   }
 
-  /*
-  from http://bl.ocks.org/mbostock/2206340
-  */
-
-  function clicked(d) {
-    // we get the centroid (intersection of the medians)
-    alert('click');
-
-    var centroid = path.centroid(d),
-        translate = projection.translate();
-
-    projection.translate([
-      translate[0] - centroid[0] + width / 2,
-      translate[1] - centroid[1] + height / 2
-    ]);
-
-    zoom.translate(projection.translate());
-
-    g.selectAll("path").transition()
-        .duration(700)
-        .attr("d", path);
-  }
 
 
 
@@ -251,26 +229,46 @@ window.onload=function(){
 
   var age_spans = Array('20-24','25-29','30-34','35-39','40-44','45-49','50-54','55-59','60-64','65-69','70-74','75-79','80-84','85-89','90-94');
 
+  function get_data_range(range_from, range_to){
+    var columns = Array();
+
+    if (range_to - range_from <= 4){
+      value = range_from + '-' + range_to;
+      if(age_spans.indexOf(value) > -1){
+        columns.push(value);
+        console.log('One single column: ' + columns);
+      }else{
+        console.log('Single column, but value ' + value + ' not found');
+        return false;
+      }
+    }else{
+      for (i = range_from; i < range_to; i+=5) {
+        columns.push( i + "-" + (i+4) );
+      }
+      console.log('Multiple columns: ' + columns)
+    }
+    return columns;
+  }
+
   $("#range_slider").ionRangeSlider({
     type: "double",
     grid: true,
     min: 20,
     max: 95,
-    grid_num: 14,
+    grid_num: 15,
     min_interval: 5,
     from: 25,
-    to: 29,
+    to: 30,
     step: 5,
     drag_interval: true,
     postfix: " ans",
     onFinish: function(data){
       var years_to = $('.irs-to').text().split(' ')[0]
       $('.irs-to').html(years_to - 1 + ' ans');
-      console.log(data.from, data.to-1);
+      //update_data(data.from, data.to-1);
+      get_data_range(data.from, data.to-1);
     }
   });
-
-
 
 }
 
