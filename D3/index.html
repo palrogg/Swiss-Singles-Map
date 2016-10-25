@@ -108,11 +108,11 @@ window.onload=function(){
     .attr('class', 'd3-tip')
     .offset([-10, 0])
     .html(function(d) {
-      var townName = nameById.get(d.properties.OBJECTVAL);
+      var townName = nameById.get(d.properties.BFS_NUMMER);
       if (!townName){
-        townName = d.properties.GEMNAME + ' (id='+d.properties.OBJECTVAL+')';
+        townName = d.properties.NAME + ' (id='+d.properties.BFS_NUMMER+')';
       }
-      var singleMen = singleMenById.get(d.properties.OBJECTVAL),
+      var singleMen = singleMenById.get(d.properties.BFS_NUMMER),
         singleString = lang.singleMen;
       if (singleMen < 0){
         singleMen *= -1;
@@ -198,12 +198,12 @@ window.onload=function(){
       .enter().append("path")
       .attr("class", "boundary")
         .attr("fill", function(d) {
-          if(!singleMenById.get(d.properties.OBJECTVAL)){
+          if(!singleMenById.get(d.properties.BFS_NUMMER)){
             return 'black';
           }
           else{
-  //        console.log(singleMenById.get(d.properties.OBJECTVAL));
-          return quantize(singleMenById.get(d.properties.OBJECTVAL));
+  //        console.log(singleMenById.get(d.properties.BFS_NUMMER));
+          return quantize(singleMenById.get(d.properties.BFS_NUMMER));
           }
 
         })
