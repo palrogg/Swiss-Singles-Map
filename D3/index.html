@@ -88,19 +88,17 @@ background: #ccc;
   left: 0;
 }
 </style>
-</head>
-<body>
-  <div id="toolbar">
-    <input type="text" id="range_slider" />
-  </div>
-
-
 <script src="js/d3.min.js"></script>
 <script src="js/topojson.v1.min.js"></script>
 <script type="text/javascript" src="js/tooltip.js"></script>
 <script src="js/lang.fr.js"></script>
 <script src="js/jquery-1.12.4.min.js"></script>
 <script src="js/ion.rangeSlider.js"></script>
+</head>
+<body>
+  <div id="toolbar">
+    <input type="text" id="range_slider" />
+  </div>
 
 <script>
 window.onload=function(){
@@ -128,8 +126,6 @@ window.onload=function(){
         return "<strong>" + singleString + " " + lang.in + " " + townName + ":</strong> <span style='color:red'>" + singleMen + "</span>";
       }
     });
-
-
 
   var svg = d3.select("body")
     .append("svg")
@@ -186,46 +182,36 @@ window.onload=function(){
   function ready(error, ch) {
     if (error)
     {
-      console.log('shit');
+      console.log('Could not load data');
       throw error;
-    }else{
-      console.log('okay');
     }
-    console.log(ch);
 
     svg.append("g")
-        .attr("class", "counties")
+      .attr("class", "counties")
       .selectAll("path")
-        .data(topojson.feature(ch, ch.objects.gemeinden).features)
+      .data(topojson.feature(ch, ch.objects.gemeinden).features)
       .enter().append("path")
       .attr("class", "boundary")
-        .attr("fill", function(d) {
-          if(!singleMenById.get(d.properties.BFS_NUMMER)){
-            if(d.properties.NAME.match(/^Lac|.*see$|.*see \(.{2}\)$|^Lago|^Bielersee|^Murtensee/)){
-              d.properties.IS_LAKE = true;
-              return '#33ccff';
-            }else{
-              d.properties.IS_UNAVAILABLE = true;
-              return 'black';
-            }
+      .attr("fill", function(d) {
+        if(!singleMenById.get(d.properties.BFS_NUMMER)){
+          if(d.properties.NAME.match(/^Lac|.*see$|.*see \(.{2}\)$|^Lago|^Bielersee|^Murtensee/)){
+            d.properties.IS_LAKE = true;
+            return '#33ccff';
+          }else{
+            d.properties.IS_UNAVAILABLE = true;
+            return 'black';
           }
-          else{
-  //        console.log(singleMenById.get(d.properties.BFS_NUMMER));
+        }else{
           return quantize(singleMenById.get(d.properties.BFS_NUMMER));
-          }
-
-        })
-        .attr("d", path)
-        .on("mouseover", tip.show)
-        .on("mouseout", tip.hide);
-
-
+        }
+      })
+      .attr("d", path)
+      .on("mouseover", tip.show)
+      .on("mouseout", tip.hide);
   }
 
 
-
-
-  // We initialize the range slider
+  // Range slider
 
   var age_spans = Array('20-24','25-29','30-34','35-39','40-44','45-49','50-54','55-59','60-64','65-69','70-74','75-79','80-84','85-89','90-94');
 
@@ -269,7 +255,6 @@ window.onload=function(){
       get_data_range(data.from, data.to-1);
     }
   });
-
 }
 
 </script>
