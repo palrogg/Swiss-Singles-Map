@@ -26,16 +26,20 @@
 $("#range_03").ionRangeSlider({
     type: "double",
     grid: true,
-    min: 24,
-    max: 94,
+    min: 20,
+    max: 95,
     grid_num: 14,
     min_interval: 5,
-    from: 24,
-    to: 29,
+    from: 25,
+    to: 30,
     step: 5,
     drag_interval: true,
     postfix: " ans",
-    onFinish: function(){console.log('Finish with value')}
+    onFinish: function(data){
+      var years_to = $('.irs-to').text().split(' ')[0]
+      $('.irs-to').html(years_to - 1 + ' ans');
+      console.log(data.from, data.to-1);
+    }
 });
 
 
