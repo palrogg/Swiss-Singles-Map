@@ -101,6 +101,7 @@ background: #ccc;
   </div>
 
 <script>
+// A - Tooltip
 window.onload=function(){
   var tip = d3.tip()
     .attr('class', 'd3-tip')
@@ -146,10 +147,10 @@ window.onload=function(){
 
   svg.call(tip);
 
-
+  // B - load data and draw D3 visualization
   var nameById = d3.map();
   var singleMenById = d3.map();
-
+  var singleMenByAgeById = d3.map();
   /*var quantize = d3.scaleQuantize()
       .domain([-50, 50])
       .range(['blue', 'purple', 'red']);
@@ -173,10 +174,14 @@ window.onload=function(){
 
   d3.queue()
       .defer(d3.json, "gemeinden.json")
-      .defer(d3.csv, "final_dataset_totals_id", function(d) {
-  	    nameById.set(d.GDENR, d.Gemeinde);
-        singleMenById.set(d.GDENR, d['Ledige Männer Total +/-']);
-      	})
+      .defer(d3.csv, "singles_dataset", function(row) {
+  	    nameById.set(row.GDENR, row.Gemeinde);
+
+        // the next line will be deleted when the code is ready
+        singleMenById.set(row.GDENR, row['Ledige Männer Total +/-']);
+
+        singleMenByAgeById.set(row.GDENR, row);
+      })
       .await(ready);
 
   function ready(error, ch) {
@@ -185,6 +190,7 @@ window.onload=function(){
       console.log('Could not load data');
       throw error;
     }
+    //console.log(singleMenByAgeById['$1']);
 
     svg.append("g")
       .attr("class", "counties")
@@ -211,7 +217,7 @@ window.onload=function(){
   }
 
 
-  // Range slider
+  // D - Range slider
 
   var age_spans = Array('20-24','25-29','30-34','35-39','40-44','45-49','50-54','55-59','60-64','65-69','70-74','75-79','80-84','85-89','90-94');
 
@@ -236,6 +242,32 @@ window.onload=function(){
     return columns;
   }
 
+  // C - Update visualization for a given age span
+  function update_data_range(range_from, range_to){
+    var usecols = get_data_range(range_from, range_to);
+
+    svg.selectAll("path")
+      .transition().duration(200)
+      .style("fill", function(d) {
+        if(!singleMenById.get(d.properties.BFS_NUMMER)){
+          if(d.properties.NAME.match(/^Lac|.*see$|.*see \(.{2}\)$|^Lago|^Bielersee|^Murtensee/)){
+            d.properties.IS_LAKE = true;
+            return '#33ccff';
+          }else{
+            d.properties.IS_UNAVAILABLE = true;
+            return 'black';
+          }
+        }else{
+          var totalSingles = singleMenByAgeById.get(d.properties.BFS_NUMMER);
+          var singlesCount = 0;
+          for (var col of usecols) {
+            singlesCount += parseInt(totalSingles[col + '_men']);
+          }
+          return quantize(singlesCount);
+        }
+      });
+  }
+
   $("#range_slider").ionRangeSlider({
     type: "double",
     grid: true,
@@ -251,8 +283,8 @@ window.onload=function(){
     onFinish: function(data){
       var years_to = $('.irs-to').text().split(' ')[0]
       $('.irs-to').html(years_to - 1 + ' ans');
-      //update_data(data.from, data.to-1);
-      get_data_range(data.from, data.to-1);
+      update_data_range(data.from, data.to-1);
+      //get_data_range(data.from, data.to-1);
     }
   });
 }
