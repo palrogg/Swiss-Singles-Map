@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Les célibataires en Suisse</title>
+<link rel="stylesheet" href="css/bootstrap.min.css" />
+<link rel="stylesheet" href="css/bootstrap-theme.min.css" />
 <link rel="stylesheet" href="css/ion.rangeSlider.css" />
 <style>
 /* added for zoom/pan - to be enhanced */
@@ -12,42 +14,48 @@ body, html {
   height: 100%;
   margin: 0;
 }
-
+.b{
+  font-weight: 600;
+}
 #toolbar {
   position: fixed;
   z-index: 20000;
   top: 0;
   left: 0;
-  width: 96%;
-  padding: 0 2%;
-  height: 60px;
+  width: 100%;
+  padding: 1% 2%;
+  /* padding: 1% 2% 0 2%; when <p> with buttons */
   background: white;
-  border-bottom: 1px solid #333;
+  /* border-bottom: 1px solid #333;*/
 }
+#viz{
+  height: 80%;
+  background: #ccc;
+  box-shadow: 0px 8px 12px rgba(0, 0, 0, 0.176);
+}
+
 
 svg {
   position: absolute;
   top: 0;
   left: 0;
 }
-/* end added for   */
+/* end added for zoom/pan  */
 
-body{
-background: #ccc;
+h1#fadeout_title{
+  position: fixed;
+  top: 40%;
+  left: 20%;
 }
+
 .boundary {
   stroke: #ccc;
   stroke-width: .5px;
 }
-.counties {
+.town {
   fill: none;
 }
 
-.states {
-  fill: none;
-  stroke: none; /* #fff; */
-  stroke-linejoin: round;
-}
 .boundary:hover{
   /* transform: perspective(500px) translate3d(10px,0px,0px); */
   /* Problem: a transform would erase the current transform */
@@ -106,12 +114,31 @@ background: #ccc;
 <body>
   <div id="toolbar">
     <input type="text" id="range_slider" />
+    <!--<p id="zoomTo">Zoomer sur: <button data-loc="[46.529694, 6.636530]">Genève</button> <button data-loc="[46.529694, 6.636530]">Lausanne</button> <button data-loc="[46.529694, 6.636530]">Fribourg</button> </p> -->
   </div>
-
+  <div id="viz"><h1 id="fadeout_title">Les célibataires en Suisse<span id="title_dots">...</span></h1></div>
 <script>
+
+// Loading animation
+/*
+// Infinite number version
+var titleInterval = setInterval(function(){
+  $('#title_dots').text($('#title_dots').text() + ' .');
+}, 100);
+*/
+
+var titleInterval = setInterval(function(){
+  var currentText = $('#title_dots').text();
+  if(currentText.length > 2){
+    $('#title_dots').text('');
+  }else{
+    $('#title_dots').text(currentText + '.');
+  }
+}, 50);
+
 // A - Tooltip
 window.onload=function(){
-  var age_from = 20, age_to = 94;
+  var age_from = 20, age_to = 94, percentage='';
 
   var tip = d3.tip()
     .attr('class', 'd3-tip')
@@ -133,7 +160,7 @@ window.onload=function(){
           from_to = '';
         if(d.properties.singlesForCurrentSpan){
           singleMen = d.properties.singlesForCurrentSpan;
-          from_to = ' ' + lang.from + ' ' + age_from + ' ' + lang.to + ' ' + age_to + ' ' + lang.years_old + ' ';
+          from_to = ''; // ' ' + lang.from + ' ' + age_from + ' ' + lang.to + ' ' + age_to + ' ' + lang.years_old + ' ';
           /*fromAge = 10;
           toAge = 20;
           var from_to_str = lang.from_to;
@@ -145,14 +172,14 @@ window.onload=function(){
           singleMen *= -1;
           singleString = lang.singleWomen;
         }
-        return "<strong>" + singleString + " " + from_to + lang.in + " " + townName + ":</strong> <span style='color:red'>" + singleMen + "</span>";
+        return "<strong>" + singleString + " " + from_to + lang.in + " " + townName + ":</strong> <span style='color:red'>" + singleMen + percentage + "</span>";
       }
     });
 
-  var svg = d3.select("body")
+  var svg = d3.select("#viz")
     .append("svg")
     .attr("width", "100%")
-    .attr("height", "100%")
+    .attr("height", "80%")
     .call(d3.zoom().on("zoom", function () {
       // zoom function
       svg.attr("transform", d3.event.transform);
@@ -165,9 +192,6 @@ window.onload=function(){
       }else{
         svg.selectAll("path").style('stroke-width', '0.5px');
       }
-      // Here we could change the stroke width:
-      // k = 100;
-      // xxx.style("stroke-width", 1.5 / k + "px");
     }))
     .append("g")
 
@@ -187,8 +211,12 @@ window.onload=function(){
   -> maybe the best way, but needs more scales
       */
 
+  var quantizePercentage = d3.scaleThreshold()
+      .domain([-20, -10, -1, 1, 10, 20]) // 0, pivot, max -- previously: -50, 0, 50
+      .range(['#b2182b','#ef8a62','#fddbc7','#d1e5f0','#67a9cf','#2166ac']);
+
   var quantize = d3.scaleLinear()
-      .domain([-50, 0, 50]) // 0, pivot, max
+      .domain([-50, 0, 50]) // 0, pivot, max -- previously: -50, 0, 50
       .range(['red', 'white', 'blue']);
 
 
@@ -207,13 +235,16 @@ window.onload=function(){
 
   d3.queue()
       .defer(d3.json, "gemeinden.json")
-      .defer(d3.csv, "singles_dataset", function(row) {
+      .defer(d3.csv, "final_dataset_merged_id", function(row) {
   	    nameById.set(row.GDENR, row.Gemeinde);
 
         // the next line will be deleted when the code is ready
-        singleMenById.set(row.GDENR, row['Ledige Männer Total +/-']);
+        singleMenById.set(row.GDENR, row['singleMen_total']); // or: _per100
 
         singleMenByAgeById.set(row.GDENR, row);
+
+        $('#fadeout_title').hide();
+        clearTimeout(titleInterval);
       })
       .await(ready);
 
@@ -226,7 +257,7 @@ window.onload=function(){
     //console.log(singleMenByAgeById['$1']);
 
     svg.append("g")
-      .attr("class", "counties")
+      .attr("class", "town")
       .selectAll("path")
       .data(topojson.feature(ch, ch.objects.gemeinden).features)
       .enter().append("path")
@@ -271,14 +302,23 @@ window.onload=function(){
           var totalSingles = singleMenByAgeById.get(d.properties.BFS_NUMMER);
           var singlesCount = 0;
           for (var col of usecols) {
-            singlesCount += parseInt(totalSingles[col + '_men']);
+            singlesCount += parseInt(totalSingles[col + '_men']); // or: _per100
           }
           d.properties.singlesForCurrentSpan = singlesCount;
           return quantize(singlesCount);
         }
       });
+      $('#title_age').text(lang.from + ' ' + age_from + ' ' + lang.to + ' ' + age_to + ' ' + lang.years_old + ' ');
   }
 
+
+  $('#zoomTo button').click(function(){
+    var loc = $(this).data('loc');
+    console.log(loc)
+    projection.translate([loc[1], loc[0]]);
+    //projection.rotate([loc[1], loc[0]]);
+
+  });
 
   // D - Range slider
   var age_spans = Array('20-24','25-29','30-34','35-39','40-44','45-49','50-54','55-59','60-64','65-69','70-74','75-79','80-84','85-89','90-94');
@@ -326,5 +366,22 @@ window.onload=function(){
 }
 
 </script>
+
+<div class="col-md-6 col-md-offset-1 col-xs-12 col-sm-12">
+  <h1>Les célibataires <span id="title_age"></span>en Suisse</h1>
+  <!--<p>* Hommes célibataires de plus pour 100 célibataires</p>-->
+  <p>Une commune <span style="font-weight: bold; color: blue;">bleue</span> contient plus d’hommes célibataires que de femmes célibataires. Une commune <span style="font-weight: bold; color: red;">rouge</span> contient plus de femmes que d’hommes célibataires.</p>
+
+  <p>Plus la couleur est foncée, plus la différence est marquée.</p>
+
+  <p>Ce sont les célibataires <span class="b">au sens de l’Etat civil</span>.</p>
+
+  <p>Le nombre correspond aux nombre de personnes sans correspondant de l’autre sexe dans la même commune (exemple: 500 femmes - 600 hommes donne 100 hommes de plus).</p>
+
+  <p>Source: OFS, <a href="https://www.pxweb.bfs.admin.ch/Selection.aspx?px_language=fr&px_db=px-x-0102010000_103&px_tableid=px-x-0102010000_103%5Cpx-x-0102010000_103.px&px_type=PX" target="_blank">Population résidante permanente et non permanente selon les niveaux géographiques institutionnels, le sexe, l'état civil et la classe d'âge</a>, 2015.</p>
+  <p>Géodonnées: Swisstopo, limites communales selon GG25 (via <a href="https://shop.swisstopo.admin.ch/fr/products/landscape/boundaries3D" target="_blank">swissBOUNDARIES3D</a>).</p>
+</div>
+
+
 </body>
 </html>
