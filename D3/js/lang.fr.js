@@ -2,8 +2,10 @@
 lang = {
     greeting : "Salut",
     town : "Commune",
-    singleMen : "Hommes célibataires",
-    singleWomen : "Femmes célibataires",
+    singleMen : "Nombre d’hommes célibataires en plus",
+    singleWomen : "Nombre de femmes célibataires en plus",
+    singleMen_per100 : "Part d’hommes célibataires en plus",
+    singleWomen_per100 : "Part de femmes célibataires en plus",
     in : "à",
     notAvailable : "Pas de données pour ",
     newTown : "Peut-être est-ce une nouvelle commune",
